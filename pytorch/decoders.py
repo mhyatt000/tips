@@ -196,6 +196,7 @@ class DPTHead(nn.Module):
       out = self.fusion_blocks[i](out, residual=x[-(i + 1)])
 
     out = self.project(out)
+    out = F.relu(out)
     return out
 
 
@@ -264,16 +265,26 @@ class SegmentationDecoder(Decoder):
 
 
 class DepthDecoder(Decoder):
-  """Decoder for monocular depth prediction using classification bins."""
+  """Decoder for monocular depth prediction using classification bins.
 
-  def __init__(self, min_depth: float = 0.001, max_depth: float = 10.0, **kwargs) -> None:
-    # Decoder requires out_channels, we pass 256 as we use channels as bins,
-    # although we bypass the head in forward().
-    super().__init__(out_channels=256, **kwargs)
+  Predicts depth by classifying each pixel into uniformly-spaced depth bins
+  and computing the expected depth value.
+  """
+
+  def __init__(
+      self,
+      num_depth_bins: int = 256,
+      min_depth: float = 0.001,
+      max_depth: float = 10.0,
+      **kwargs,
+  ) -> None:
+    super().__init__(out_channels=num_depth_bins, **kwargs)
     self.min_depth = min_depth
     self.max_depth = max_depth
+    self.num_depth_bins = num_depth_bins
     self.register_buffer(
-        "bin_centers", torch.linspace(min_depth, max_depth, 256)
+        "bin_centers",
+        torch.linspace(min_depth, max_depth, num_depth_bins),
     )
 
   def forward(
@@ -281,20 +292,23 @@ class DepthDecoder(Decoder):
       intermediate_features: List[Tuple[torch.Tensor, torch.Tensor]],
       image_size: Optional[Tuple[int, int]] = None,
   ) -> torch.Tensor:
-    # Bypass super().forward() to avoid the linear head applied there,
-    # and use raw DPT features as logits.
-    logits = self.dpt(intermediate_features) # (B, C, H', W')
-    # Apply ReLU and shift
+    # 1. Get DPT features + task head (nn.Linear) via parent class.
+    #    Output shape: (B, num_depth_bins, H', W')
+    logits = super().forward(intermediate_features)
+
+    # 2. Classification-based depth prediction (following Scenic/AdaBins):
+    #    relu + shift -> linear normalisation -> expectation over bins.
     logits = torch.relu(logits) + self.min_depth
-    # Normalize to probabilities along the channel dimension
     probs = logits / torch.sum(logits, dim=1, keepdim=True)
-    # Compute expectation: sum(prob * bin_center)
-    depth_map = torch.einsum(
-        "bchw,c->bhw", probs, self.bin_centers.to(logits.device)
-    )
+    depth_map = torch.einsum("bchw,c->bhw", probs, self.bin_centers.to(logits.device))
+
+    # 3. Upsample to target resolution.
     if image_size is not None:
       depth_map = F.interpolate(
-          depth_map.unsqueeze(1), size=image_size, mode="bilinear", align_corners=False
+          depth_map.unsqueeze(1),
+          size=image_size,
+          mode="bilinear",
+          align_corners=False,
       ).squeeze(1)
     return depth_map.unsqueeze(1)
 
@@ -315,7 +329,12 @@ _LEGACY_KEY_PREFIXES = {
     "convs.": "dpt.convs.",
     "fusion_blocks.": "dpt.fusion_blocks.",
     "project.": "dpt.project.",
+    # Task-specific head keys (Scenic Dense -> PyTorch head.*)
     "segmentation_head.": "head.",
+    "pixel_segmentation.": "head.",
+    "pixel_depth_classif.": "head.",
+    "pixel_depth_regress.": "head.",
+    "pixel_normals.": "head.",
 }
 
 
