@@ -1,6 +1,7 @@
 [![Demo-Colab-Pytorch](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/google-deepmind/tips/blob/main/pytorch/TIPS_Demo.ipynb)
 [![Demo-HF](https://img.shields.io/badge/Demo-HF-orange)](https://huggingface.co/spaces/google/TIPSv2)
 [![Models-HF](https://img.shields.io/badge/Models-HF-orange)](https://huggingface.co/collections/google/tipsv2)
+[![HF downloads](https://img.shields.io/endpoint?url=https://gmberton.github.io/hf-downloads-trackers/tipsv2/badge.json)](https://huggingface.co/collections/google/tipsv2)
 [![Webpage](https://img.shields.io/badge/Webpage-darkgreen)](https://gdm-tipsv2.github.io/)
 [![Paper](https://img.shields.io/badge/TIPSv2-arXiv.2604.12012-B3181B.svg)](https://arxiv.org/abs/2604.12012)
 [![Paper](https://img.shields.io/badge/TIPSv1-arXiv.2410.16512-B3181B.svg)](https://arxiv.org/abs/2410.16512)
