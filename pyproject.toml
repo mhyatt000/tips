@@ -8,8 +8,10 @@ dependencies = [
     "flax>=0.12.7",
     "jax[cuda12]>=0.10.0",
     "ml-collections>=1.1.0",
+    "rich>=15.0.0",
     "scenic",
     "tensorflow-text>=2.20.1",
+    "tyro>=1.0.13",
 ]
 
 [tool.uv.sources]
