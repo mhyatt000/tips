@@ -1,0 +1,1 @@
+"""TIPS model configs."""
